@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
@@ -9,20 +10,40 @@ namespace DataHubFileService
 {
     public class DbAccess
     {
-        public static List<DataHubFile> GetFileList(string agencyID, string sourcePath)
+
+        public static AmazonDynamoDBClient GetAmazonDynamoDBClient()
+        {
+            AmazonDynamoDBClient client;
+
+            string? accessKeyID = System.Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+            string? secretyAccessKey = System.Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+
+            if (accessKeyID != null)
+            {
+                client = new AmazonDynamoDBClient(accessKeyID, secretyAccessKey, RegionEndpoint.USEast1);
+            }
+            else
+            {
+                client = new AmazonDynamoDBClient(RegionEndpoint.USEast1);
+            }
+
+            return client;
+        }
+        public static async Task<List<DataHubFile>> GetFileList(string agencyID, string sourcePath)
         {
             List<DataHubFile> fileList = new List<DataHubFile>();
 
-            using (var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1))
+            using (var client = GetAmazonDynamoDBClient())
             {
                 var qRequest = new QueryRequest
                 {
                     TableName = "Files",
                     KeyConditionExpression = "agency_id = :aid and begins_with(file_path, :fp)",
-                    ExpressionAttributeValues = new Dictionary<string, AttributeValue> {{":aid", new AttributeValue { N =  agencyID }}, { ":fp", new AttributeValue { S = sourcePath } } }
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue> { { ":aid", new AttributeValue { N = agencyID } }, { ":fp", new AttributeValue { S = sourcePath } } }
                 };
 
-                var qResponse = client.QueryAsync(qRequest).GetAwaiter().GetResult();
+
+                var qResponse = await client.QueryAsync(qRequest);
 
                 foreach (Dictionary<string, AttributeValue> item in qResponse.Items)
                 {
@@ -33,9 +54,10 @@ namespace DataHubFileService
             return fileList;
         }
 
-        public static void UploadFile(int agencyID, string filePath, string uploadedBy)
+        public static async Task<string> UploadFile(int agencyID, string filePath, string uploadedBy)
         {
-            using (var client = new AmazonDynamoDBClient(RegionEndpoint.USEast1))
+            string result = string.Empty;
+            using (var client = GetAmazonDynamoDBClient())
             {
                 var request = new PutItemRequest
                 {
@@ -47,8 +69,32 @@ namespace DataHubFileService
                         , { "published", new AttributeValue { BOOL = true }}}
                 };
 
-                var response = client.PutItemAsync(request).GetAwaiter().GetResult();
+                var response = await client.PutItemAsync(request);
+                //result = response.HttpStatusCode.ToString();
             }
+            return result;
+        }
+
+        public static async Task<string> DeleteFile(string agencyID, string filePath)
+        {
+            string result = string.Empty;
+
+            using (var client = GetAmazonDynamoDBClient())
+            {
+                var request = new DeleteItemRequest
+                {
+                    TableName = "Files",
+                    Key = new Dictionary<string, AttributeValue>
+                    {
+                        { "agency_id", new AttributeValue { N = agencyID.ToString() } },
+                        { "file_path", new AttributeValue { S = filePath } }
+                    }
+                };
+
+                var response = await client.DeleteItemAsync(request);
+            }
+
+            return result;
         }
     }
 }

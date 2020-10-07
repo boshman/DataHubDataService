@@ -38,7 +38,10 @@ namespace DataHubDataService
             }
 
             app.UseCors(options => options.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
-            app.UseHttpsRedirection();
+
+            System.Console.WriteLine("about to force redirect");
+            //app.UseHttpsRedirection();
+            System.Console.WriteLine("forced redirect");
 
             app.UseRouting();
 
