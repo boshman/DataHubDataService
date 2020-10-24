@@ -1,9 +1,14 @@
 using System;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DataHubDataService.Models
 {
     public class DataHubFile 
     {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string ID { get; set; }
         public int AgencyID { get; set; }
         public string Path { get; set; }
         public string UploadedBy { get; set; }
